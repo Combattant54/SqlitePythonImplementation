@@ -76,13 +76,18 @@ class DBTable:
         end_line = ", \n"
         string = f"""CREATE TABLE IF NOT EXISTS {cls.__name__.lower()} (\n"""
         foreign_dict = []
+        primary_rows = []
         
         logger.debug(str(cls.rows))
         
         for name, row in cls.rows.items():
             sql_strings_builder = getattr(row, "get_sql_strings", None)
             
+            # récupère les informations et le sql du row
             if sql_strings_builder is not None:
+                if row.is_primary():
+                    primary_rows.append(name)
+                
                 row_string, foreign = sql_strings_builder()
                 row_string += end_line
                 
@@ -92,6 +97,8 @@ class DBTable:
                 
             else:
                 logger.warning(dir(row))
+        
+        string += f"PRIMARY KEY({', '.join(primary_rows)})" + end_line
         
         logger.info(foreign_dict)
         

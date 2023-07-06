@@ -7,14 +7,15 @@ logger = logger_builder.build_logger(__name__)
 classics = [
     "INTEGER",
     "BLOB",
-    "SHORT",
+    "TINYINT",
+    "SMALLINT",
     "LONG",
-    "BYTE",
     "BOOLEAN",
 ]
 
 parameterized = [
     "TEXT",
+    "BIT"
 ]
 
 @dataclasses.dataclass
@@ -28,19 +29,19 @@ class SqlType:
 
 class ParameterSqlType(SqlType):
     param: int
-    def __init__(self, sql, param):
+    def __init__(self, sql, param=None):
         super().__init__(sql)
         self.param = param
     
     def as_sql(self):
+        if self.param is None:
+            return super().as_sql()
         return f"{self.sql}({self.param})"
     
     @staticmethod
     def build_class(sql, param):
         return ParameterSqlType(sql, param)
 
-def as_sql(self):
-    return self.sql
 
 for value in classics:
     value = value.upper()

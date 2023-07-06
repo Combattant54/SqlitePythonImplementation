@@ -114,9 +114,7 @@ class DBRow(Row):
     def get_sql_strings(self):
         string = f"""{self.get_row_name()} {self.get_row_type()}"""
         
-        if self.is_primary():
-            string += " PRIMARY KEY"
-        elif self.is_unique():
+        if self.is_unique():
             string += " UNIQUE"
         elif not self.is_nullable():
             string += " NOT NULL"
