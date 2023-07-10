@@ -25,7 +25,8 @@ class Row():
             autoincrement=False, 
             unique=False, 
             primary=False, 
-            nullable=False, 
+            nullable=False,
+            default=None,
             foreign_key =None
         ):
         self._name = name
@@ -33,8 +34,9 @@ class Row():
         self._autoincrement = autoincrement
         self._unique = unique
         self._primary = primary
-        self._foreign_key = foreign_key
         self._nullable = nullable
+        self._default = default
+        self._foreign_key = foreign_key
     
     def get_row_name(self) -> str:
         return self._name
@@ -55,6 +57,9 @@ class Row():
 
     def is_nullable(self):
         return self._nullable
+
+    def get_default(self):
+        return self._default
     
     def get_foreign_key(self):
         return self._foreign_key
@@ -88,8 +93,8 @@ class Row():
         return string
 
 class DBRow(Row):
-    def __init__(self, name, type, autoincrement=False, unique=False, primary=False, nullable=False, foreign_key:Row =None):
-        super().__init__(name, type, autoincrement, unique, primary, nullable, foreign_key)
+    def __init__(self, name, type, autoincrement=False, unique=False, primary=False, nullable=False, default=None, foreign_key:Row =None):
+        super().__init__(name, type, autoincrement, unique, primary, nullable, default, foreign_key)
         self.table = None
     
     def add_references(self, reference_row: Row):
@@ -121,6 +126,13 @@ class DBRow(Row):
         
         if self.is_autoincrement():
             string += " AUTOINCREMENT"
+        elif not self.is_primary() and self.get_default() is not None:
+            string += " DEFAULT"
+            if isinstance(self.get_default(), str):
+                string += f" '{self.get_default()}'"
+            else:
+                string += f" {self.get_default()}"
+            
         
         if self.get_foreign_key() is not None:
             return string, (self.get_row_name(), self.get_foreign_key())
