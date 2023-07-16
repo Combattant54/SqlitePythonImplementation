@@ -114,6 +114,9 @@ class DBRow(Row):
         if self.get_row_type().lower() not in ["int", "integer"] and self.is_autoincrement():
             raise RowSpecificitiesException(f"An invalid type of '{self.get_row_type()}' detected for autoincrement.")
         
+        if self.is_autoincrement() and not self.is_primary():
+            raise RowSpecificitiesException(f"A row marked as autoincrement must be marked as primary.")
+        
         return True
 
     def get_sql_strings(self):
@@ -124,8 +127,8 @@ class DBRow(Row):
         elif not self.is_nullable():
             string += " NOT NULL"
         
-        if self.is_autoincrement():
-            string += " AUTOINCREMENT"
+        if self.is_autoincrement() and self.is_primary():
+            string += " PRIMARY KEY AUTOINCREMENT"
         elif not self.is_primary() and self.get_default() is not None:
             string += " DEFAULT"
             if isinstance(self.get_default(), str):
@@ -145,10 +148,11 @@ class DBRow(Row):
         return row
 
 class Relations(Row):
-    def __init__(self, name, table, match_with: dict[partialmethod[Row], partialmethod[Row]], multiple="OR"):
+    def __init__(self, name, target_table, match_with: dict[partialmethod[Row], partialmethod[Row]], multiple="OR"):
         super().__init__(name, type="list", autoincrement=False, unique=False, primary=False, nullable=False, foreign_key=None)
         self.match_with = match_with
         self.multiple = multiple
+        self.target_table = target_table
         
     def validate(self):
         # appelle les getter des row à matcher dans la boucle pour vérifier l'égalité des types 
@@ -163,7 +167,7 @@ class Relations(Row):
                 if input.get_row_type() != target.get_row_type():
                     raise NoMatchingTypeRelation(
                         f"The types '{input.get_row_type()}' and '{target.get_row_type()}' don't match.", 
-                        input, 
+                        input,
                         target
                     )
 
@@ -172,3 +176,13 @@ class Relations(Row):
             except Exception as e:
                 # TODO à modifier pour gérer les erreurs mais plus spécialisées
                 raise e
+    
+    def get_values(self, **kwargs):
+        values = {}
+        for k, v in self.match_with.items():
+            param_name = k().get_row_name()
+            param_value = kwargs[v().get_row_name()]
+            values[param_name] = param_value
+            
+        instances = self.target_table.get_all(self.multiple, **values)
+        return instances

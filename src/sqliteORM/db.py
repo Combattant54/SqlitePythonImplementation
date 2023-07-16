@@ -30,25 +30,63 @@ class DBTable:
         super().__init__()
         self._values = kwargs.copy()
         
-        already_exists = True
-        for row in self.__class__.rows.keys():
-            if not row in kwargs:
-                already_exists = False
+        self.already_exists = True
+        count = 0
+        for row_name, row in self.__class__.rows.items():
+            if not isinstance(row, rows.DBRow):
+                continue
+            if not row_name in kwargs:
+                self.already_exists = False
                 break
+            else:
+                count += 1
         
-        if already_exists and self.__class__.get_data(**kwargs) == kwargs:
+        if count != len(kwargs):
+            self.already_exists = False
+        
+        if self.already_exists:
             return
-        
-        try:
-            string = f"INSERT INTO {type(self).__name__} ({', '.join(kwargs.keys())}) VALUES ({', '.join(['?'] * len(kwargs.values()))})"
-            logger.debug(string)
-            cursor = type(self).db.execute(string, kwargs.values())
+    
+    def create_new(self):
+        if self.already_exists:
+            return
+        self.create_line(**self._values)
+    
+    @classmethod
+    def make_instance(cls, row_value):
+        found_args = {}
+        row_conter = 0
+        for k, v in cls.rows.items():
+            if not isinstance(v, rows.DBRow):
+                continue
             
-            self._values = self.__class__.get_data(id=cursor.lastrowid)
+            found_args[k] = row_value[row_conter]
+            row_conter += 1
+        
+        if len(row_value) != row_conter:
+            raise ValueError("Invalid row_value : " + str(row_value) + " for class " + cls.__name__)
+        
+        instance = cls(**found_args)
+        return instance
+            
+    @classmethod
+    def _create_line(cls, **kwargs):
+        string = f"INSERT INTO {cls.__name__} ({', '.join(kwargs.keys())}) VALUES ({', '.join(['?'] * len(kwargs.values()))})"
+        logger.debug(string)
+        return string, kwargs.values()
+        
+    
+    @classmethod
+    def create_line(cls, **kwargs):
+        try:
+            string, args_list = cls._create_line(**kwargs)
+            
+            cursor = cls.db.execute(string, args_list)
+            
+            return cls.get_data(id=cursor.lastrowid)
         except sqlite3.IntegrityError:
-            self._values = self.__class__.get_data(**kwargs)
-        
-        
+            return cls.get_data(**kwargs)
+    
     @classmethod
     def add_row(cls, row: rows.Row):
         if getattr(cls, "rows", None) is None:
@@ -85,7 +123,7 @@ class DBTable:
             
             # récupère les informations et le sql du row
             if sql_strings_builder is not None:
-                if row.is_primary():
+                if row.is_primary() and not row.is_autoincrement():
                     primary_rows.append(name)
                 
                 row_string, foreign = sql_strings_builder()
@@ -98,7 +136,8 @@ class DBTable:
             else:
                 logger.warning(dir(row))
         
-        string += f"PRIMARY KEY({', '.join(primary_rows)})" + end_line
+        if primary_rows:
+            string += f"PRIMARY KEY({', '.join(primary_rows)})" + end_line
         
         logger.info(foreign_dict)
         
@@ -127,23 +166,26 @@ class DBTable:
         return string
     
     @classmethod
-    def get_data(cls, **kwargs):
+    def _get_data(cls, **kwargs):
         args_list = []
         for key, value in kwargs.items():
             args_list.append(value)
         
         string = f"SELECT * FROM {cls.__name__} WHERE (" + " AND ".join([f"{row_name} = ?" for row_name in kwargs.keys()]) + ")"
-        print(string)
-        r = cls.db.execute(string, args_list)
+        return string, args_list
         
-        print(r, dir(r))
+    
+    @classmethod
+    def get_data(cls, **kwargs):
+        string, args_list = cls._get_data(**kwargs)
+        
+        r = cls.db.execute(string, args_list)
         value = r.fetchone()
-        print(value)
+        
         found_args = {}
         
         row_conter = 0
         for k, v in cls.rows.items():
-            print(row_conter, (k, v))
             if not isinstance(v, rows.DBRow):
                 continue
             
@@ -151,6 +193,29 @@ class DBTable:
             row_conter += 1
         
         return found_args
+    
+    @classmethod
+    def _get_all(cls, multiple, **kwargs):
+        string = f"SELECT * FROM {cls.__name__} WHERE (" \
+            + f" {multiple} ".join([f"{row_name} = ?" for row_name in kwargs.keys()]) \
+            + ")"
+        return string, kwargs.values()
+        
+    
+    @classmethod
+    def get_all(cls, multiple="AND", **kwargs):
+        string, args_list = cls._get_all(multiple, **kwargs)
+        
+        cursor = cls.execute(string, args_list)
+        instances = []
+        for args in cursor.fetchall():
+            instances.append(cls.make_instance(args))
+        
+        return instances
+            
+    @classmethod
+    def execute(cls, string, args_list):
+        return cls.db.execute(string, args_list)
     
     @classmethod
     def get_by(cls, **kwargs):
@@ -182,10 +247,13 @@ class DBTable:
         return iter(self.values.items())
     
     def __getattribute__(self, __name: str) -> Any:
-        try:
-            return self.values[__name]
-        except:
-            return super().__getattribute__(__name)
+        rows_dict = super().__getattribute__("__class__").rows
+        if __name in rows_dict:
+            if isinstance(rows_dict[__name], rows.Relations):
+                self._values[__name] = rows_dict[__name].get_values(self._values)
+
+            return self._values[__name]
+        return super().__getattribute__(__name)
     
     def __getitem__(self, k):
         return self.values[k]
@@ -202,7 +270,6 @@ class DB():
             os.makedirs(os.path.dirname(path))
         
         self.path = path
-        print(self.path)
         self.conn = sqlite3.connect(self.path)
         self.tables = tables
         self.debug = debug

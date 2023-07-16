@@ -4,10 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sqliteORM"
-description = "Un package pour avoir une implémentation orientée objet de sqlite3"
-version = "0.2.2"
+description = "Un package pour avoir une implémentation orientée (synchrone et asynchrone) objet de sqlite3"
+version = "0.3.1"
 authors = [
     {name = "Combattant54", email = "combat54ant@gmail.com"}
 ]
 dependencies = [
+    "sqlite3>=2.6.0"
 ]
+
+[project.optional-dependencies]
+async = [
+    "asyncio",
+    "aiosqlite>=0.19.0"
+]
+
+all = [
+    "sqliteORM[async]"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["*.examples", "*.test"]
