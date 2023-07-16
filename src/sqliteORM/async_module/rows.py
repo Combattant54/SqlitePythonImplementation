@@ -14,5 +14,13 @@ class AsyncDBRow(rows.DBRow):
             foreign_key: Row = None
         ):
         super().__init__(name, type, autoincrement, unique, primary, nullable, default, foreign_key)
+    
+    async def get_reference(self, value):
+        if self.get_foreign_key() is not None:
+            string = self._get_reference(value)
+            async with await self.table.db.get_lock() as db:
+                r = await db.execute(string, tuple(value))
+            
+            return r
         
         

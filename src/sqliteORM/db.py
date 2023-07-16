@@ -53,6 +53,16 @@ class DBTable:
         self.create_line(**self._values)
     
     @classmethod
+    def _iter_rows(cls):
+        string = f"SELECT * FROM {cls.__name__}"
+        return string
+    
+    @classmethod
+    def iter_rows(cls):
+        string = cls._iter_rows()
+        return cls.execute(string)
+    
+    @classmethod
     def make_instance(cls, row_value):
         found_args = {}
         row_conter = 0

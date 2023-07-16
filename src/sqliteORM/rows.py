@@ -142,6 +142,18 @@ class DBRow(Row):
         
         return string, ()
     
+    def _get_reference(self):
+        foreign_row = self.get_foreign_key()()
+        string = f"SELECT * FROM {foreign_row.table.__class__.name} WHERE {foreign_row.get_row_name()} = ?"
+        return string
+    
+    def get_reference(self, value):
+        if self.get_foreign_key() is not None:
+            string = self._get_reference()
+            self.table.db.execute(string, tuple(value))
+
+            return r
+        
     @staticmethod
     def build_id_row(name="id"):
         row = DBRow(name=name, type=types.INTEGER, autoincrement=True, unique=True, primary=True, nullable=False)

@@ -2,7 +2,7 @@ import asyncio
 from contextlib import contextmanager
 import sqliteORM.db as db
 from sqliteORM.db import DBTable
-import sqliteORM.async_module.rows
+import sqliteORM.async_module.rows as rows
 from sqliteORM.exceptions import ArgumentException
 from collections import deque
 import aiosqlite
@@ -57,6 +57,23 @@ class AsyncDBTable(db.DBTable):
             row_conter += 1
         
         return found_args
+    
+    @classmethod
+    async def iter_rows(cls):
+        string = cls._iter_rows()
+        cursor = await cls.execute(string)
+        while True:
+            row = await cursor.fetchone()
+            if row is None:
+                break
+            row = cls.make_instance(row)
+            yield row
+    
+    @classmethod
+    async def execute(cls, string, *args):
+        with cls.db.get_lock() as (db, access_id):
+            cursor = await db.execute(access_id, string, tuple(args))
+        return cursor
 
 class AsyncDB(db.DB):
     def __init__(self, tables: set[DBTable] = [], path=None, debug=False) -> None:
@@ -127,19 +144,19 @@ class AsyncDB(db.DB):
             else:
                 r = await conn.executemany(command, params_tuple)
         except sqlite3.IntegrityError | aiosqlite.IntegrityError as e:
-            conn.rollback()
+            await conn.rollback()
             if "UNIQUE constraint failed:" in str(e):
                 return None
             else:
                 raise 
         except sqlite3.ProgrammingError | aiosqlite.ProgrammingError as e:
-            conn.rollback()
+            await conn.rollback()
             if "Cannot operate on a closed database." in str(e):
                 r = self.execute(command, params_tuple, many, force_new=True)
             else:
                 raise 
         except Exception as e:
-            conn.rollback()
+            await conn.rollback()
             print("\n")
             logger.exception("Unhandled error in execute for " + command + " with parameters " + str(params_tuple))
             print("\n")
