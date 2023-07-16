@@ -74,6 +74,17 @@ class AsyncDBTable(db.DBTable):
         with cls.db.get_lock() as (db, access_id):
             cursor = await db.execute(access_id, string, tuple(args))
         return cursor
+    
+    @classmethod
+    async def get_all(cls, multiple="AND", **kwargs):
+        string, args_list = cls._get_all(multiple, **kwargs)
+        
+        cursor = await cls.execute(string, args_list)
+        instances = []
+        for args in await cursor.fetchall():
+            instances.append(cls.make_instance(args))
+        
+        return instances
 
 class AsyncDB(db.DB):
     def __init__(self, tables: set[DBTable] = [], path=None, debug=False) -> None:

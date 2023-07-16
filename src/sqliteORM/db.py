@@ -60,7 +60,13 @@ class DBTable:
     @classmethod
     def iter_rows(cls):
         string = cls._iter_rows()
-        return cls.execute(string)
+        cursor = cls.execute(string)
+        while True:
+            row = cursor.fetchone()
+            if not row:
+                break
+            row = cls.make_instance(row)
+            yield row
     
     @classmethod
     def make_instance(cls, row_value):
