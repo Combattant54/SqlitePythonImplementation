@@ -143,7 +143,7 @@ class AsyncDB(db.DB):
         except:
             self.is_locked = False
             
-    async def get_conn(self, force_new = False):
+    def get_conn(self, force_new = False):
         # La connection existe déja et une nouvelle n'est pas demandée
         if (not force_new) and (self.conn is not None):
             return self.conn
