@@ -11,6 +11,7 @@ classics = [
     "SMALLINT",
     "LONG",
     "BOOLEAN",
+    "DATETIME"
 ]
 
 parameterized = [
@@ -63,3 +64,4 @@ for value in parameterized:
         
         locals()[value] = value_class
         
+DATE = TEXT(10)
