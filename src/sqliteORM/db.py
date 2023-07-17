@@ -298,7 +298,7 @@ class DB():
         
         self.path = path
         self.conn = sqlite3.connect(self.path)
-        self.tables = tables
+        self.tables = set(tables)
         self.debug = debug
     
     def add_table(self, table: DBTable) -> None:

@@ -87,7 +87,7 @@ class AsyncDBTable(db.DBTable):
         return instances
 
 class AsyncDB(db.DB):
-    def __init__(self, tables: set[db.DBTable] = [], path=None, debug=False) -> None:
+    def __init__(self, tables: set[db.DBTable] =set(), path=None, debug=False) -> None:
         if not path:
             raise ArgumentException("")
         super().__init__(tables, path, debug)
