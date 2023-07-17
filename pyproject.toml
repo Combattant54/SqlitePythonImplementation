@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sqliteORM"
 description = "Un package pour avoir une implémentation orientée (synchrone et asynchrone) objet de sqlite3"
-version = "0.3.13"
+version = "0.3.14"
 authors = [
     {name = "Combattant54", email = "combat54ant@gmail.com"}
 ]

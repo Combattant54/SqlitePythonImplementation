@@ -194,3 +194,25 @@ class AsyncDB(db.DB):
             print("\n")
         
         return r
+
+    async def commit(self, message="", force_commit=False):
+        conn = await self.get_conn()
+        
+        # retourne si pas de changement
+        if conn.total_changes <= 0 and not force_commit:
+            print(conn.total_changes)
+            return
+        
+        # cré le message de commit s'il y en a un
+        if message:
+            message = f"Committing for '{message}'"
+        
+        # Essaie de commit et debug le résultat sinon log l'erreur
+        try:
+            await conn.commit()
+            if self.debug:
+                message = message.format(changes=conn.total_changes)
+                print(message)
+                logger.debug(message)
+        except Exception as e:
+            logger.error(message, exc_info=True)
