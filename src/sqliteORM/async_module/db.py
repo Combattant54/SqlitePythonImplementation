@@ -98,6 +98,20 @@ class AsyncDB(db.DB):
         self.queue = deque()
         self.conn = aiosqlite.connect(self.path)
     
+    async def create_tables(self):
+        if not self.debug:
+            self.debug = True
+        
+        with await self.get_lock() as (_, access_id):
+            for table in self.tables:
+                string = table.get_string()
+                print("\n")
+                print(string)
+                r = await self.execute(access_id, string)
+                print(r)
+            
+            self.commit("Tables créées", force_commit=True)
+    
     async def get_id(self):
         access_id = self.next_access_id
         self.next_access_id += 1
