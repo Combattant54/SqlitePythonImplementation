@@ -105,12 +105,10 @@ class AsyncDB(db.DB):
         async with self.get_lock() as (_, access_id):
             for table in self.tables:
                 string = table.get_string()
-                print("\n")
-                print(string)
+                logger.info(string)
                 r = await self.execute(access_id, string)
-                print(r)
             
-            self.commit("Tables créées", force_commit=True)
+            await self.commit("Tables créées", force_commit=True)
     
     async def get_id(self):
         access_id = self.next_access_id
