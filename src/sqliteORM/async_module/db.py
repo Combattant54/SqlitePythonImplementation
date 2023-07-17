@@ -121,7 +121,7 @@ class AsyncDB(db.DB):
     async def get_lock(self):
         try:
             access_id = await self.get_id()
-            yield self.lock(access_id)
+            yield await self.lock(access_id)
         finally:
             await self.release()
     
