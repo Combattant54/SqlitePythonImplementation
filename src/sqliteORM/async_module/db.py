@@ -177,9 +177,14 @@ class AsyncDB(db.DB):
         except sqlite3.ProgrammingError | aiosqlite.ProgrammingError as e:
             await conn.rollback()
             if "Cannot operate on a closed database." in str(e):
-                r = self.execute(command, params_tuple, many, force_new=True)
+                r = await self.execute(access_id, command, params_tuple, many, force_new=True)
             else:
                 raise 
+        except ValueError as e:
+            if "no active connection" in str(e):
+                r = await self.execute(access_id, command, params_tuple, many, force_new=True)
+            else:
+                raise
         except Exception as e:
             await conn.rollback()
             print("\n")
