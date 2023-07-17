@@ -143,7 +143,7 @@ class AsyncDB(db.DB):
         except:
             self.is_locked = False
             
-    def get_conn(self, force_new = False):
+    async def get_conn(self, force_new = False):
         # La connection existe déja et une nouvelle n'est pas demandée
         if (not force_new) and (self.conn is not None):
             return self.conn
@@ -151,7 +151,7 @@ class AsyncDB(db.DB):
         #cré une nouvelle connection
         try:
             print(self.path)
-            self.conn = aiosqlite.connect(self.path)
+            self.conn = await aiosqlite.connect(self.path)
             print(self.conn)
         except Exception as e:
             logger.exception("Error in getting connection, force = " + str(force_new))
@@ -162,7 +162,7 @@ class AsyncDB(db.DB):
     async def execute(self, access_id: int, command: str, params_tuple: tuple =(), many=False, force_new=False):
         assert self.current_access_id == access_id
         params_tuple = tuple(params_tuple)
-        conn = self.get_conn(force_new)
+        conn = await self.get_conn(force_new)
         r = None
         
         try:
