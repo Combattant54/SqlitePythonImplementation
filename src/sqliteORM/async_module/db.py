@@ -103,7 +103,7 @@ class AsyncDB(db.DB):
         self.next_access_id += 1
         return access_id
     
-    @contextmanager()
+    @contextmanager
     async def get_lock(self):
         try:
             access_id = await self.get_id()
