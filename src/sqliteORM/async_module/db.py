@@ -71,7 +71,7 @@ class AsyncDBTable(db.DBTable):
     
     @classmethod
     async def execute(cls, string, *args):
-        with cls.db.get_lock() as (db, access_id):
+        async with cls.db.get_lock() as (db, access_id):
             cursor = await db.execute(access_id, string, tuple(args))
         return cursor
     
@@ -102,7 +102,7 @@ class AsyncDB(db.DB):
         if not self.debug:
             self.debug = True
         
-        with await self.get_lock() as (_, access_id):
+        async with self.get_lock() as (_, access_id):
             for table in self.tables:
                 string = table.get_string()
                 print("\n")

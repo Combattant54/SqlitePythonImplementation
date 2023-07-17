@@ -18,7 +18,7 @@ class AsyncDBRow(rows.DBRow):
     async def get_reference(self, value):
         if self.get_foreign_key() is not None:
             string = self._get_reference(value)
-            async with await self.table.db.get_lock() as db:
+            async with self.table.db.get_lock() as db:
                 r = await db.execute(string, tuple(value))
             
             return r
