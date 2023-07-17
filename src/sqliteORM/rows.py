@@ -1,8 +1,8 @@
 import inspect
 from functools import partialmethod
 
-from . import types
-from . import logger_builder
+import sqliteORM.types as types
+import sqliteORM.logger_builder as logger_builder
 
 logger = logger_builder.build_logger(__name__)
 
@@ -150,9 +150,9 @@ class DBRow(Row):
     def get_reference(self, value):
         if self.get_foreign_key() is not None:
             string = self._get_reference()
-            self.table.db.execute(string, tuple(value))
+            cursor = self.table.db.execute(string, tuple(value))
 
-            return r
+            return cursor.fetchone()
         
     @staticmethod
     def build_id_row(name="id"):

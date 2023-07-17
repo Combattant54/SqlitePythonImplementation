@@ -1,13 +1,13 @@
 import asyncio
 from contextlib import contextmanager
-import sqliteORM.db as db
-from sqliteORM.db import DBTable
-import sqliteORM.async_module.rows as rows
-from sqliteORM.exceptions import ArgumentException
 from collections import deque
 import aiosqlite
-import logger_builder
 import sqlite3
+
+import sqliteORM.db as db
+import sqliteORM.async_module.rows as rows
+from sqliteORM.exceptions import ArgumentException
+import sqliteORM.logger_builder as logger_builder
 
 logger = logger_builder.build_logger(__name__)
 
@@ -87,7 +87,7 @@ class AsyncDBTable(db.DBTable):
         return instances
 
 class AsyncDB(db.DB):
-    def __init__(self, tables: set[DBTable] = [], path=None, debug=False) -> None:
+    def __init__(self, tables: set[db.DBTable] = [], path=None, debug=False) -> None:
         if not path:
             raise ArgumentException("")
         super().__init__(tables, path, debug)

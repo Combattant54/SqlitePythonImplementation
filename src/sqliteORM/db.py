@@ -52,6 +52,17 @@ class DBTable:
             return
         self.create_line(**self._values)
     
+    def convert_all(self):
+        counter = 0
+        for row in self.cls.rows:
+            if not isinstance(row, rows.DBRow):
+                continue
+            
+            value = row.get_reference(self.values()[row.get_row_name()])
+            if value:
+                self.values()[row.get_row_name()] = value
+                
+    
     @classmethod
     def _iter_rows(cls):
         string = f"SELECT * FROM {cls.__name__}"
