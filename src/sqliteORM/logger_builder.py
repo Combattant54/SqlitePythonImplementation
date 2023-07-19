@@ -37,6 +37,7 @@ stream_handler.setLevel(logging.ERROR)
 stream_handler.setFormatter(formatter)
 
 LOGGER_LEVEL = logging.DEBUG
+LOGGERS = []
 
 # fonction pour créer un logger spéciale commun a tout le projet
 def build_logger(name) -> logging.Logger:
@@ -46,8 +47,13 @@ def build_logger(name) -> logging.Logger:
     new_logger.addHandler(file_handler)
     new_logger.addHandler(stream_handler)
     
+    LOGGERS.append(new_logger)
+    
     return new_logger
 
 def set_level(level: logging._Level):
     global LOGGER_LEVEL
     LOGGER_LEVEL = level
+    
+    for logger in LOGGERS:
+        logger.setLevel(level)
