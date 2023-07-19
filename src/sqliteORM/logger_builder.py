@@ -51,7 +51,7 @@ def build_logger(name) -> logging.Logger:
     
     return new_logger
 
-def set_level(level: logging._Level):
+def set_level(level):
     global LOGGER_LEVEL
     LOGGER_LEVEL = level
     
