@@ -6,6 +6,7 @@ DIR_PATH = os.path.dirname(__file__)
 SPAM_PATH = os.path.join(DIR_PATH, "spam.log")
 FILE_PATH = os.path.join(DIR_PATH, "logs.log")
 
+print(DIR_PATH, SPAM_PATH, FILE_PATH)
 
 # cré les fichier s'ils n'existent pas
 if not os.path.exists(SPAM_PATH):
@@ -35,14 +36,18 @@ stream_handler = logging.StreamHandler()
 stream_handler.setLevel(logging.ERROR)
 stream_handler.setFormatter(formatter)
 
+LOGGER_LEVEL = logging.DEBUG
 
 # fonction pour créer un logger spéciale commun a tout le projet
 def build_logger(name) -> logging.Logger:
     new_logger = logging.getLogger(name)
-    new_logger.setLevel(logging.DEBUG)
+    new_logger.setLevel(LOGGER_LEVEL)
     new_logger.addHandler(spam_handler)
     new_logger.addHandler(file_handler)
     new_logger.addHandler(stream_handler)
     
     return new_logger
-    
+
+def set_level(level: logging._Level):
+    global LOGGER_LEVEL
+    LOGGER_LEVEL = level
