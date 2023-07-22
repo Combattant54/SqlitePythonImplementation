@@ -50,7 +50,7 @@ class DBTable:
     def create_new(self):
         if self.already_exists:
             return
-        self.create_line(**self._values)
+        self._values = self.create_line(**self._values)
     
     def convert_all(self):
         counter = 0

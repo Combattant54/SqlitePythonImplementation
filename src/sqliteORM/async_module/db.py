@@ -15,37 +15,50 @@ class AsyncDBTable(db.DBTable):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
     
-    async def create_new(self):
+    async def create_new(self, _access_id=None):
         if self.already_exists:
             return
-        await self.create_line(**self._values)
+        self._values = await self.create_line(_access_id=_access_id, **self._values)
+    
+    async def convert_all(self, _access_id=None):
+        counter = 0
+        for row in self.cls.rows:
+            if not isinstance(row, rows.AsyncDBRow):
+                continue
+            
+            value = await row.get_reference(self.values()[row.get_row_name()], _access_id=_access_id)
+            if value:
+                self.values()[row.get_row_name()] = value
     
     @classmethod
-    async def create_line(cls, **kwargs):
+    async def create_line(cls, _access_id=None,  **kwargs):
         try:
             string = f"INSERT INTO {cls.__name__} ({', '.join(kwargs.keys())}) VALUES ({', '.join(['?'] * len(kwargs.values()))})"
             logger.debug(string)
-            cursor = await cls.db.execute(string, kwargs.values())
+            cursor = await cls.db.execute(string, kwargs.values(), _access_id=_access_id)
             
-            return await cls.get_data(id=cursor.lastrowid)
+            return await cls.get_data(_access_id=_access_id, id=cursor.lastrowid)
         except sqlite3.IntegrityError:
-            return await cls.get_data(**kwargs)
+            return await cls.get_data(_access_id=_access_id, **kwargs)
     
     @classmethod
-    async def get_data(cls, **kwargs):
+    async def get_data(cls, _access_id=None, **kwargs):
         args_list = []
         for key, value in kwargs.items():
             args_list.append(value)
         
         string = f"SELECT * FROM {cls.__name__} WHERE (" + " AND ".join([f"{row_name} = ?" for row_name in kwargs.keys()]) + ")"
         
-        async with await cls.db as (db, access_id):
-            r = await db.execute(access_id, string, args_list)
+        if _access_id is None:
+            async with await cls.db as (db, access_id):
+                r = await db.execute(access_id, string, args_list)
+        else:
+            r = await db.execute(_access_id, string, args_list)
         
-            print(r, dir(r))
-            value = await r.fetchone()
-            print(value)
-            found_args = {}
+        print(r, dir(r))
+        value = await r.fetchone()
+        print(value)
+        found_args = {}
         
         row_conter = 0
         for k, v in cls.rows.items():
@@ -59,9 +72,9 @@ class AsyncDBTable(db.DBTable):
         return found_args
     
     @classmethod
-    async def iter_rows(cls):
+    async def iter_rows(cls, _access_id=None):
         string = cls._iter_rows()
-        cursor = await cls.execute(string)
+        cursor = await cls.execute(string, _access_id=_access_id)
         while True:
             row = await cursor.fetchone()
             if row is None:
@@ -70,21 +83,30 @@ class AsyncDBTable(db.DBTable):
             yield row
     
     @classmethod
-    async def execute(cls, string, *args):
-        async with cls.db.get_lock() as (db, access_id):
-            cursor = await db.execute(access_id, string, tuple(args))
+    async def execute(cls, string, *args, _access_id=None):
+        if access_id is None:
+            async with cls.db.get_lock() as (db, access_id):
+                cursor = await db.execute(access_id, string, tuple(args))
+        else:
+            cursor = await cls.db.execute(_access_id, string, tuple(args))
         return cursor
     
     @classmethod
-    async def get_all(cls, multiple="AND", **kwargs):
+    async def get_all(cls, multiple="AND", _access_id=None, **kwargs):
         string, args_list = cls._get_all(multiple, **kwargs)
         
-        cursor = await cls.execute(string, args_list)
+        cursor = await cls.execute(string, *args_list, _access_id=_access_id)
         instances = []
         for args in await cursor.fetchall():
             instances.append(cls.make_instance(args))
         
         return instances
+
+    @classmethod
+    async def get_by(cls, _access_id=None, **kwargs):
+        data = await cls.get_data(_access_id=_access_id, **kwargs)
+        return cls(**data)
+
 
 class AsyncDB(db.DB):
     def __init__(self, tables: set[db.DBTable] =set(), path=None, debug=False) -> None:

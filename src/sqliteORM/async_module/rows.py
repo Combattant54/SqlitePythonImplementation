@@ -15,11 +15,14 @@ class AsyncDBRow(rows.DBRow):
         ):
         super().__init__(name, type, autoincrement, unique, primary, nullable, default, foreign_key)
     
-    async def get_reference(self, value):
+    async def get_reference(self, value, _access_id=None):
         if self.get_foreign_key() is not None:
             string = self._get_reference(value)
-            async with self.table.db.get_lock() as db:
-                r = await db.execute(string, tuple(value))
+            if _access_id is None:
+                async with self.table.db.get_lock() as (db, access_id):
+                    r = await db.execute(access_id, string, tuple(value))
+            else:
+                r = await db.execute(_access_id, string, tuple(value))
             
             return r
         
