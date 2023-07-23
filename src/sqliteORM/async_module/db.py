@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from collections import deque
 import aiosqlite
 import sqlite3
+import traceback
 
 import sqliteORM.db as db
 import sqliteORM.async_module.rows as rows
@@ -53,7 +54,7 @@ class AsyncDBTable(db.DBTable):
             async with await cls.db as (db, access_id):
                 r = await db.execute(access_id, string, args_list)
         else:
-            r = await db.execute(_access_id, string, args_list)
+            r = await cls.db.execute(_access_id, string, args_list)
         
         print(r, dir(r))
         value = await r.fetchone()
@@ -121,13 +122,9 @@ class AsyncDB(db.DB):
         self.conn = aiosqlite.connect(self.path)
     
     async def create_tables(self):
-        if not self.debug:
-            self.debug = True
         
         async with self.get_lock() as (_, access_id):
-            for table in self.tables:
-                string = table.get_string()
-                logger.info(string)
+            for string in self._create_tables():
                 r = await self.execute(access_id, string)
             
             await self.commit("Tables créées", force_commit=True)
@@ -141,6 +138,7 @@ class AsyncDB(db.DB):
     async def get_lock(self):
         try:
             access_id = await self.get_id()
+            traceback.print_stack(limit=3)
             yield await self.lock(access_id)
         finally:
             await self.release()

@@ -5,6 +5,7 @@ import os
 
 from . import rows
 from . import checks
+from .exceptions import NotCreatedTable
 
 class ArgumentError(Exception):
     pass
@@ -25,6 +26,7 @@ class DuplicatedRowError(ArgumentError):
 
 class DBTable:
     db = None
+    _is_created = False
     
     def __init__(self, **kwargs) -> None:
         super().__init__()
@@ -61,7 +63,6 @@ class DBTable:
             value = row.get_reference(self.values()[row.get_row_name()])
             if value:
                 self.values()[row.get_row_name()] = value
-                
     
     @classmethod
     def _iter_rows(cls):
@@ -251,6 +252,9 @@ class DBTable:
     
     @classmethod
     def _get_row(cls, name):
+        if not cls._is_created:
+            raise NotCreatedTable(f"The row '{name}' may is unreachable because the table '{cls.__name__}' isn't created.")
+        
         return cls.rows.get(name)
     
     @classmethod
@@ -319,16 +323,15 @@ class DB():
         
         return self.conn
 
-    def create_tables(self):
-        if not self.debug:
-            self.debug = True
-            
+    def _create_tables(self):
         for table in self.tables:
             string = table.get_string()
-            print("\n")
-            print(string)
+            yield string
+            table._is_created = True
+    
+    def create_tables(self):
+        for string in self._create_tables():
             r = self.execute(string)
-            print(r)
         
         self.commit("Tables créées", force_commit=True)
     
