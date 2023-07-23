@@ -56,8 +56,10 @@ class AsyncDBTable(db.DBTable):
         else:
             r = await cls.db.execute(_access_id, string, args_list)
         
-        print(r, dir(r))
         value = await r.fetchone()
+        if value is None:
+            return None
+        
         print(value)
         found_args = {}
         
