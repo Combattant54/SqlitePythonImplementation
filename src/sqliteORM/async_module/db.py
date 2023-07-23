@@ -108,6 +108,8 @@ class AsyncDBTable(db.DBTable):
     @classmethod
     async def get_by(cls, _access_id=None, **kwargs):
         data = await cls.get_data(_access_id=_access_id, **kwargs)
+        if data is None:
+            return None
         return cls(**data)
 
 
