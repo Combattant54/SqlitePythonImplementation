@@ -36,7 +36,7 @@ class AsyncDBTable(db.DBTable):
         try:
             string = f"INSERT INTO {cls.__name__} ({', '.join(kwargs.keys())}) VALUES ({', '.join(['?'] * len(kwargs.values()))})"
             logger.debug(string)
-            cursor = await cls.db.execute(string, kwargs.values(), _access_id=_access_id)
+            cursor = await cls.db.execute(_access_id, string, kwargs.values())
             
             return await cls.get_data(_access_id=_access_id, id=cursor.lastrowid)
         except sqlite3.IntegrityError:
