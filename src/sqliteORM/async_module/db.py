@@ -181,8 +181,8 @@ class AsyncDB(db.DB):
         return self.conn
         
     
-    async def execute(self, access_id: int, command: str, params_tuple: tuple =(), many=False, force_new=False):
-        assert self.current_access_id == access_id
+    async def execute(self, _access_id: int, command: str, params_tuple: tuple =(), many=False, force_new=False):
+        assert self.current_access_id == _access_id
         params_tuple = tuple(params_tuple)
         conn = await self.get_conn(force_new)
         r = None
