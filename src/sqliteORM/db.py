@@ -307,6 +307,7 @@ class DB():
     
     def add_table(self, table: DBTable) -> None:
         table.create()
+        table._is_created = True
         self.tables.add(table)
         table.db = self
     
@@ -327,7 +328,6 @@ class DB():
         for table in self.tables:
             string = table.get_string()
             yield string
-            table._is_created = True
     
     def create_tables(self):
         for string in self._create_tables():
