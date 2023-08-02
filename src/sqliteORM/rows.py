@@ -154,9 +154,9 @@ class DBRow(Row):
 
             return cursor.fetchone()
         
-    @staticmethod
-    def build_id_row(name="id"):
-        row = DBRow(name=name, type=types.INTEGER, autoincrement=True, unique=True, primary=True, nullable=False)
+    @classmethod
+    def build_id_row(cls, name="id"):
+        row = cls(name=name, type=types.INTEGER, autoincrement=True, unique=True, primary=True, nullable=False)
         return row
 
 class Relations(Row):

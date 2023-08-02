@@ -5,7 +5,7 @@ import os
 
 from . import rows
 from . import checks
-from .exceptions import NotCreatedTable
+from .exceptions import NotCreatedTable, NoParameterPassed
 
 class ArgumentError(Exception):
     pass
@@ -30,7 +30,18 @@ class DBTable:
     
     def __init__(self, **kwargs) -> None:
         super().__init__()
-        self._values = kwargs.copy()
+        self._values = {}
+        
+        for k, v in kwargs.items():
+            if k.startswith("_"):
+                logger.warning(f"Invalid row name of : {k}")
+                continue
+            
+            self._values[k] = v
+        
+        if len(self._values) == 0:
+            string_args = ', '.join([k + '=' + str(v) for k, v in kwargs.items()])
+            raise NoParameterPassed(f"No valid parameters was passed to {self.__class__.__name__}({string_args})")
         
         self.already_exists = True
         count = 0
@@ -275,19 +286,21 @@ class DBTable:
         return string
 
     def __iter__(self) -> Iterator:
-        return iter(self.values.items())
+        return iter(self._values.items())
     
     def __getattribute__(self, __name: str) -> Any:
         rows_dict = super().__getattribute__("__class__").rows
         if __name in rows_dict:
             if isinstance(rows_dict[__name], rows.Relations):
                 self._values[__name] = rows_dict[__name].get_values(self._values)
+            
+            print(rows_dict)
 
             return self._values[__name]
         return super().__getattribute__(__name)
     
     def __getitem__(self, k):
-        return self.values[k]
+        return self._values[k]
     
     
 

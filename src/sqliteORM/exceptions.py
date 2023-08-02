@@ -9,3 +9,7 @@ class UnknowPathException(ArgumentException):
 class NotCreatedTable(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+
+class NoParameterPassed(ArgumentException):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)

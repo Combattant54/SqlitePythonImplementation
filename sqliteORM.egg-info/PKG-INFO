@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: sqliteORM
+Version: 0.2.2
+Summary: Un package pour avoir une implémentation orientée objet de sqlite3
+Author: Combattant54
+Author-email: Combattant54 <combat54ant@gmail.com>
+License-File: LICENSE

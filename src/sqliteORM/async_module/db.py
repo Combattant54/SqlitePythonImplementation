@@ -19,7 +19,9 @@ class AsyncDBTable(db.DBTable):
     async def create_new(self, _access_id=None):
         if self.already_exists:
             return
+        logger.warning(self._values)
         self._values = await self.create_line(_access_id=_access_id, **self._values)
+        logger.warning(self._values)
     
     async def convert_all(self, _access_id=None):
         counter = 0
@@ -49,7 +51,7 @@ class AsyncDBTable(db.DBTable):
             args_list.append(value)
         
         string = f"SELECT * FROM {cls.__name__} WHERE (" + " AND ".join([f"{row_name} = ?" for row_name in kwargs.keys()]) + ")"
-        
+        logger.info(string)
         if _access_id is None:
             async with await cls.db as (db, access_id):
                 r = await db.execute(access_id, string, args_list)
@@ -60,6 +62,7 @@ class AsyncDBTable(db.DBTable):
         if value is None:
             return None
         
+        logger.info(value)
         print(value)
         found_args = {}
         

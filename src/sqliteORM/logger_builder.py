@@ -18,7 +18,7 @@ if not os.path.exists(FILE_PATH):
 
 
 # cré le formatter du modul de log
-formatter = logging.Formatter("%(levelname)s - %(name)s - %(lineno)s - %(message)s")
+formatter = logging.Formatter("%(levelname)s - %(name)s - %(lineno)s - %(datetime)s - %(message)s")
 
 
 # cré le handler pour le fichier de spam qui contient tt les messages
@@ -27,7 +27,7 @@ spam_handler.setLevel(logging.DEBUG)
 spam_handler.setFormatter(formatter)
 
 # cré le handler pour le fichier de log qui contient les messages d'erreurs et de warning
-file_handler = logging.FileHandler(FILE_PATH, mode="a")
+file_handler = logging.FileHandler(FILE_PATH, mode="w")
 file_handler.setLevel(logging.WARNING)
 file_handler.setFormatter(formatter)
 
