@@ -289,15 +289,19 @@ class DBTable:
         return iter(self._values.items())
     
     def __getattribute__(self, __name: str) -> Any:
+        value = super().__getattribute__(__name)
+        if value is not None:
+            return value
+        
+        
         rows_dict = super().__getattribute__("__class__").rows
-        if __name in rows_dict:
-            if isinstance(rows_dict[__name], rows.Relations):
-                self._values[__name] = rows_dict[__name].get_values(self._values)
-            
-            print(rows_dict)
+        if isinstance(rows_dict[__name], rows.Relations):
+            self._values[__name] = rows_dict[__name].get_values(self._values)
+        
+        print(rows_dict)
+        
+        return self._values[__name]
 
-            return self._values[__name]
-        return super().__getattribute__(__name)
     
     def __getitem__(self, k):
         return self._values[k]
