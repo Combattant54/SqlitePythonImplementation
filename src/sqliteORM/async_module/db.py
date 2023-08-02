@@ -40,7 +40,14 @@ class AsyncDBTable(db.DBTable):
             logger.debug(string)
             cursor = await cls.db.execute(_access_id, string, kwargs.values())
             
-            return await cls.get_data(_access_id=_access_id, id=cursor.lastrowid)
+            if cursor is None:
+                return
+            auto_increments = {}
+            for row_name, row in cls.rows.items():
+                if row.is_autoincrement():
+                    auto_increments[row_name] = cursor.lastrowid
+            
+            return await cls.get_data(_access_id=_access_id, **auto_increments)
         except sqlite3.IntegrityError:
             return await cls.get_data(_access_id=_access_id, **kwargs)
     
@@ -198,7 +205,7 @@ class AsyncDB(db.DB):
         except sqlite3.IntegrityError | aiosqlite.IntegrityError as e:
             await conn.rollback()
             if "UNIQUE constraint failed:" in str(e):
-                return None
+                r = None
             else:
                 raise 
         except sqlite3.ProgrammingError | aiosqlite.ProgrammingError as e:

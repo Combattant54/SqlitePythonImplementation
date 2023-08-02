@@ -5,7 +5,7 @@ import os
 
 from . import rows
 from . import checks
-from .exceptions import NotCreatedTable, NoParameterPassed
+from .exceptions import NotCreatedTable, NoParameterPassed, InvalidRowNameError
 
 class ArgumentError(Exception):
     pass
@@ -208,6 +208,8 @@ class DBTable:
     def _get_data(cls, **kwargs):
         args_list = []
         for key, value in kwargs.items():
+            if not key in cls.rows:
+                raise InvalidRowNameError(key, 1)
             args_list.append(value)
         
         string = f"SELECT * FROM {cls.__name__} WHERE (" + " AND ".join([f"{row_name} = ?" for row_name in kwargs.keys()]) + ")"
