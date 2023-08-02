@@ -1,9 +1,0 @@
-Metadata-Version: 2.1
-Name: sqliteORM
-Version: 0.3.20
-Summary: Un package pour avoir une implémentation orientée (synchrone et asynchrone) objet de sqlite3
-Author: Combattant54
-Author-email: Combattant54 <combat54ant@gmail.com>
-Provides-Extra: async
-Provides-Extra: all
-License-File: LICENSE
