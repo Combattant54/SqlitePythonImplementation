@@ -18,7 +18,7 @@ if not os.path.exists(FILE_PATH):
 
 
 # cré le formatter du modul de log
-formatter = logging.Formatter("%(levelname)s - %(name)s - %(lineno)s - %(datetime)s - %(message)s")
+formatter = logging.Formatter("%(levelname)s - %(name)s - %(lineno)s - %(asctime)s - %(message)s")
 
 
 # cré le handler pour le fichier de spam qui contient tt les messages

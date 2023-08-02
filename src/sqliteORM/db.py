@@ -286,15 +286,24 @@ class DBTable:
         return string
 
     def __iter__(self) -> Iterator:
-        return iter(self._values.items())
+        if self._values is None:
+            return iter({}.items())
+        else:
+            return iter(self._values.items())
     
     def __getattribute__(self, __name: str) -> Any:
-        value = super().__getattribute__(__name)
-        if value is not None:
+        rows_dict = super().__getattribute__("__class__").rows
+        
+        try:
+            if __name in rows_dict:
+                value = self[__name]
+            else:
+                value = super().__getattribute__(__name)
+        except:
+            logger.warning(f"Nothing get in both of them for {__name} in {rows_dict} for values {super().__getattribute__('_values')}")
+        else:
             return value
         
-        
-        rows_dict = super().__getattribute__("__class__").rows
         if isinstance(rows_dict[__name], rows.Relations):
             self._values[__name] = rows_dict[__name].get_values(self._values)
         
