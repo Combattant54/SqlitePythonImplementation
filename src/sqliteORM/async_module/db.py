@@ -70,12 +70,10 @@ class AsyncDBTable(db.DBTable):
             return None
         
         logger.info(value)
-        print(value)
         found_args = {}
         
         row_conter = 0
         for k, v in cls.rows.items():
-            print(row_conter, (k, v))
             if not isinstance(v, rows.AsyncDBRow):
                 continue
             
