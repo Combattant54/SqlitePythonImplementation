@@ -18,10 +18,11 @@ class AsyncDBTable(db.DBTable):
     
     async def create_new(self, _access_id=None):
         if self.already_exists:
-            return
+            return False
         logger.warning(self._values)
         self._values = await self.create_line(_access_id=_access_id, **self._values)
         logger.warning(self._values)
+        return True
     
     async def convert_all(self, _access_id=None):
         counter = 0
@@ -41,7 +42,7 @@ class AsyncDBTable(db.DBTable):
             cursor = await cls.db.execute(_access_id, string, kwargs.values())
             
             if cursor is None:
-                return
+                return 
             auto_increments = {}
             for row_name, row in cls.rows.items():
                 if row.is_autoincrement():
@@ -58,7 +59,7 @@ class AsyncDBTable(db.DBTable):
             args_list.append(value)
         
         string = f"SELECT * FROM {cls.__name__} WHERE (" + " AND ".join([f"{row_name} = ?" for row_name in kwargs.keys()]) + ")"
-        logger.info(string)
+        logger.debug(string)
         if _access_id is None:
             async with await cls.db as (db, access_id):
                 r = await db.execute(access_id, string, args_list)
@@ -69,7 +70,7 @@ class AsyncDBTable(db.DBTable):
         if value is None:
             return None
         
-        logger.info(value)
+        logger.debug(value)
         found_args = {}
         
         row_conter = 0
@@ -195,6 +196,8 @@ class AsyncDB(db.DB):
         conn = await self.get_conn(force_new)
         r = None
         
+        msg = f"Executing {command} with parameters {params_tuple}, many: {many}, force: {force_new}"
+        logger.debug(msg)
         try:
             if not many:
                 r = await conn.execute(command, params_tuple)
