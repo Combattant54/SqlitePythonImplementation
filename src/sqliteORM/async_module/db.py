@@ -40,12 +40,16 @@ class AsyncDBTable(db.DBTable):
             
             if cursor is None:
                 return 
-            auto_increments = {}
+            primaries = {}
             for row_name, row in cls.rows.items():
+                assert isinstance(row, rows.AsyncDBRow)
                 if row.is_autoincrement():
-                    auto_increments[row_name] = cursor.lastrowid
+                    primaries[row_name] = cursor.lastrowid
+                elif row.is_primary() and row_name in kwargs:
+                    primaries[row_name] = kwargs[row_name]
+                    
             
-            return await cls.get_data(_access_id=_access_id, **auto_increments)
+            return await cls.get_data(_access_id=_access_id, **primaries)
         except sqlite3.IntegrityError:
             return await cls.get_data(_access_id=_access_id, **kwargs)
     
