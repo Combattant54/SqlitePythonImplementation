@@ -203,6 +203,9 @@ class AsyncDB(db.DB):
         except sqlite3.IntegrityError | aiosqlite.IntegrityError as e:
             await conn.rollback()
             if "UNIQUE constraint failed:" in str(e):
+                msg = f"warning in command {command} : " + str(e)
+                logger.warning(msg)
+                print(msg)
                 r = None
             else:
                 raise 
@@ -219,9 +222,9 @@ class AsyncDB(db.DB):
                 raise
         except Exception as e:
             await conn.rollback()
-            print("\n")
-            logger.exception("Unhandled error in execute for " + command + " with parameters " + str(params_tuple))
-            print("\n")
+            msg = "Unhandled error in execute for " + command + " with parameters " + str(params_tuple)
+            print("\n" + msg + "\n")
+            logger.exception(msg)
         
         return r
 
