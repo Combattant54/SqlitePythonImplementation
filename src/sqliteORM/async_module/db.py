@@ -16,16 +16,13 @@ class AsyncDBTable(db.DBTable):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
     
-    async def create_new(self, _access_id=None, force_new=False):
-        if self.already_exists and not force_new:
-            return False
+    async def create_new(self, _access_id=None):
         logger.warning(self._values)
         self._values = await self.create_line(_access_id=_access_id, **self._values)
         logger.warning(self._values)
         return True
     
     async def convert_all(self, _access_id=None):
-        counter = 0
         for row in self.cls.rows:
             if not isinstance(row, rows.AsyncDBRow):
                 continue

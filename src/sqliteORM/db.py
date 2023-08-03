@@ -42,31 +42,11 @@ class DBTable:
         if len(self._values) == 0:
             string_args = ', '.join([k + '=' + str(v) for k, v in kwargs.items()])
             raise NoParameterPassed(f"No valid parameters was passed to {self.__class__.__name__}({string_args})")
-        
-        self.already_exists = True
-        count = 0
-        for row_name, row in self.__class__.rows.items():
-            if not isinstance(row, rows.DBRow):
-                continue
-            if not row_name in kwargs:
-                self.already_exists = False
-                break
-            else:
-                count += 1
-        
-        if count != len(kwargs):
-            self.already_exists = False
-        
-        if self.already_exists:
-            return
     
     def create_new(self):
-        if self.already_exists:
-            return
         self._values = self.create_line(**self._values)
     
     def convert_all(self):
-        counter = 0
         for row in self.cls.rows:
             if not isinstance(row, rows.DBRow):
                 continue
