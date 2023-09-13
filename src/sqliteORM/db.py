@@ -15,7 +15,7 @@ logger = logger_builder.build_logger(__name__)
 
 def transform_foreign(x):
     row = x[1]()
-    assert isinstance(row, rows.Row)
+    assert isinstance(row, rows.Row), f"The type {row.__class__} in {x} is invalid here"
     logger.debug(str(row))
     
     return x[0], row
@@ -90,7 +90,22 @@ class DBTable:
             
     @classmethod
     def _create_line(cls, **kwargs):
-        string = f"INSERT INTO {cls.__name__} ({', '.join(kwargs.keys())}) VALUES ({', '.join(['?'] * len(kwargs.values()))})"
+        string_insert = f"INSERT INTO {cls.__name__}"
+        string_rows = " ("
+        string_values = " VALUES ("
+        
+        absolute_args = {}
+        
+        for row_name, row in cls.rows.items():
+            if not row_name in kwargs and row.get_const_value() != "":
+                absolute_args[row_name] = row.get_const_value()
+        
+        string_rows += ", ".join(absolute_args.keys())
+        string_values += ", ".join(absolute_args.values())
+        
+        string_rows += ', '.join(kwargs.keys())
+        string_values += ', '.join(['?'] * len(kwargs.values()))
+        string = string_insert + string_rows + ")" + string_values + ")"
         logger.debug(string)
         return string, kwargs.values()
         
@@ -109,7 +124,7 @@ class DBTable:
     @classmethod
     def add_row(cls, row: rows.Row):
         if getattr(cls, "rows", None) is None:
-            cls.rows = {}
+            cls.rows: dict[str, rows.Row] ={}
             
         name = row.get_row_name().lower()
         if name.startswith("_"):
@@ -137,15 +152,19 @@ class DBTable:
         
         logger.debug(str(cls.rows))
         
+        multiple_primaries = cls.has_multiple_primaries()
+        
         for name, row in cls.rows.items():
             sql_strings_builder = getattr(row, "get_sql_strings", None)
             
             # récupère les informations et le sql du row
             if sql_strings_builder is not None:
-                if row.is_primary() and not row.is_autoincrement():
+                if row.is_primary() and multiple_primaries:
                     primary_rows.append(name)
+                    if row.is_unique() and not row.is_autoincrement():
+                        print(f"error : row {name} is unique")
                 
-                row_string, foreign = sql_strings_builder()
+                row_string, foreign = sql_strings_builder(build_primary=(not multiple_primaries))
                 row_string += end_line
                 
                 if foreign:
@@ -254,6 +273,28 @@ class DBTable:
     def get_row(cls, name):
         return partial(cls._get_row, name)
     
+    @classmethod
+    def has_multiple_primaries(cls, force=False):
+        if not force:
+            multiple = getattr(cls, "_multiple_primaries", None)
+            if multiple is not None:
+                return multiple
+        
+        primary = False
+        for row in cls.rows.values():
+            if not row.is_primary():
+                continue
+            elif primary:
+                logger.warning(f"returning multiples primaries for class '{cls.__name__}'")
+                setattr(cls, "_multiple_primaries", True)
+                return True
+            else:
+                primary = True
+        
+        logger.warning(f"returning single primary for class '{cls.__name__}'")
+        setattr(cls, "_multiple_primaries", False)
+        return False
+    
     def values(self):
         return self._values
     
@@ -335,11 +376,15 @@ class DB():
     def _create_tables(self):
         for table in self.tables:
             string = table.get_string()
-            yield string
+            yield (table, string)
     
     def create_tables(self):
-        for string in self._create_tables():
-            r = self.execute(string)
+        for table, string in self._create_tables():
+            try:
+                r = self.execute(string)
+            except Exception as e:
+                print("an error occured during creating table " + table.__name__)
+                e.with_traceback(e.__traceback__)
         
         self.commit("Tables créées", force_commit=True)
     
@@ -389,6 +434,7 @@ class DB():
         except sqlite3.IntegrityError as e:
             conn.rollback()
             if "UNIQUE constraint failed:" in str(e):
+                logger.debug(f"failed to execute '{command}' with parameters {params_tuple}")
                 return None
             else:
                 raise e
@@ -403,5 +449,8 @@ class DB():
             print("\n")
             logger.exception("Unhandled error in execute for " + command + " with parameters " + str(params_tuple))
             print("\n")
+        
+        if r is None:
+            logger.exception(f"None result for command '{command}' with parameters {params_tuple} due to : ")
         
         return r

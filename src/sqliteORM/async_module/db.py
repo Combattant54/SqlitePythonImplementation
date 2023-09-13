@@ -138,8 +138,12 @@ class AsyncDB(db.DB):
     async def create_tables(self):
         
         async with self.get_lock() as (_, access_id):
-            for string in self._create_tables():
-                r = await self.execute(access_id, string)
+            for table, string in self._create_tables():
+                try:
+                    r = await self.execute(string)
+                except Exception as e:
+                    e.with_traceback(e.__traceback__)
+                    print("an error occured during creating table " + table.__name__)
             
             await self.commit("Tables créées", force_commit=True)
     
@@ -235,10 +239,13 @@ class AsyncDB(db.DB):
     async def commit(self, message="", force_commit=False):
         conn = await self.get_conn()
         
-        # retourne si pas de changement
-        if conn.total_changes <= 0 and not force_commit:
-            print(conn.total_changes)
-            return
+        try:
+            # retourne si pas de changement
+            if conn.total_changes <= 0 and not force_commit:
+                print(conn.total_changes)
+                return
+        except ValueError:
+            conn = await self.get_conn(force_new=True)
         
         # cré le message de commit s'il y en a un
         if message:

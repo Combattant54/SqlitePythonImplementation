@@ -2,7 +2,7 @@ import logging
 import os
 
 
-DIR_PATH = os.path.dirname(__file__)
+DIR_PATH = os.getcwd()
 SPAM_PATH = os.path.join(DIR_PATH, "spam.log")
 FILE_PATH = os.path.join(DIR_PATH, "logs.log")
 
@@ -10,10 +10,10 @@ print(DIR_PATH, SPAM_PATH, FILE_PATH)
 
 # cré les fichier s'ils n'existent pas
 if not os.path.exists(SPAM_PATH):
-    with open(SPAM_PATH, "x"):
+    with open(SPAM_PATH, "a"):
         pass
 if not os.path.exists(FILE_PATH):
-    with open(FILE_PATH, "x"):
+    with open(FILE_PATH, "a"):
         pass
 
 

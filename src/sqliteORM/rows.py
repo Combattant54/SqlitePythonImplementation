@@ -27,7 +27,8 @@ class Row():
             primary=False, 
             nullable=False,
             default=None,
-            foreign_key =None
+            foreign_key =None,
+            const_value=""
         ):
         self._name = name
         self._type = type
@@ -37,6 +38,7 @@ class Row():
         self._nullable = nullable
         self._default = default
         self._foreign_key = foreign_key
+        self._const_value = const_value
     
     def get_row_name(self) -> str:
         return self._name
@@ -64,6 +66,12 @@ class Row():
     def get_foreign_key(self):
         return self._foreign_key
 
+    def set_const_value(self, const_value):
+        self._const_value = const_value
+
+    def get_const_value(self):
+        return self._const_value
+    
     def validate(self):
         if self.is_primary() and self.is_nullable():
             raise RowSpecificitiesException("A primary row can't be nullable")
@@ -93,9 +101,19 @@ class Row():
         return string
 
 class DBRow(Row):
-    def __init__(self, name, type, autoincrement=False, unique=False, primary=False, nullable=False, default=None, foreign_key:Row =None):
-        super().__init__(name, type, autoincrement, unique, primary, nullable, default, foreign_key)
-        self.table = None
+    def __init__(
+            self, 
+            name, 
+            type, 
+            autoincrement=False, 
+            unique=False, 
+            primary=False, 
+            nullable=False, 
+            default=None, 
+            foreign_key:Row =None, 
+            const_value: str =""):
+        super().__init__(name, type, autoincrement, unique, primary, nullable, default, foreign_key, const_value)
+        self.table: type = None
     
     def add_references(self, reference_row: Row):
         if reference_row.get_row_type() == self.get_row_type():
@@ -119,16 +137,19 @@ class DBRow(Row):
         
         return True
 
-    def get_sql_strings(self):
+    def get_sql_strings(self, build_primary=True):
         string = f"""{self.get_row_name()} {self.get_row_type()}"""
         
-        if self.is_unique():
+        if self.is_unique() and not self.is_primary():
             string += " UNIQUE"
         elif not self.is_nullable():
             string += " NOT NULL"
         
         if self.is_autoincrement() and self.is_primary():
-            string += " PRIMARY KEY AUTOINCREMENT"
+            if build_primary:
+                string += " PRIMARY KEY AUTOINCREMENT"
+            else:
+                self.set_const_value(f"SELECT IFNULL(MAX({self.get_row_name()}) + 1, 0) FROM {self.table.__name__}")
         elif not self.is_primary() and self.get_default() is not None:
             string += " DEFAULT"
             if isinstance(self.get_default(), str):
