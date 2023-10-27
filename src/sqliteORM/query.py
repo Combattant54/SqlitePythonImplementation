@@ -4,6 +4,7 @@ from typing import Any
 from . import rows
 from . import logger_builder
 import checks
+import typing
 
 logger = logger_builder.build_logger(__name__)
 
@@ -28,16 +29,16 @@ class QueryComparaisonType(enum.Enum):
         return QueryComparaisonType._values[type]
     
 class SearchCondition:
-    def __init__(self, first_value: rows.Row | Any | None) -> None:
+    def __init__(self, first_value: (rows.Row, Any, None)) -> None:
         pass
 
 class Query():
     def __init__(
             self,
-            table: type | str,
-            columns_filter:list[tuple[rows.Row | str, QueryComparaisonType]] =[], 
-            to_select: list[rows.Row | str] =[],
-            order_by:rows.Row | str =None, 
+            table: (type, str),
+            columns_filter: typing.List[tuple[(rows.Row, str, QueryComparaisonType)]] =[], 
+            to_select: typing.List[(rows.Row, str)] =[],
+            order_by: (rows.Row, str) =None, 
             ascending=False
         ):
         self.table = table.__name__.lower() if isinstance(table, type) else table
@@ -72,10 +73,10 @@ class Query():
 class SimpleQuery(Query):
     def __init__(
         self, 
-        table: type | str | Query, 
-        columns_filter: list[tuple[rows.Row | str, QueryComparaisonType]] = [], 
-        to_select: list[rows.Row | str] = [], 
-        order_by: list[rows.Row | str] = [], 
+        table: (type, str, Query), 
+        columns_filter: typing.List[tuple[(rows.Row, str, QueryComparaisonType)]] = [], 
+        to_select: typing.List[(rows.Row, str)] = [], 
+        order_by: typing.List[(rows.Row, str)] = [], 
         ascending=False
     ):
         super().__init__(table, columns_filter, to_select, order_by, ascending)

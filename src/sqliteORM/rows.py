@@ -181,7 +181,7 @@ class DBRow(Row):
         return row
 
 class Relations(Row):
-    def __init__(self, name, target_table, match_with: dict[partialmethod[Row], partialmethod[Row]], multiple="OR"):
+    def __init__(self, name, target_table, match_with: dict, multiple="OR"):
         super().__init__(name, type="list", autoincrement=False, unique=False, primary=False, nullable=False, foreign_key=None)
         self.match_with = match_with
         self.multiple = multiple

@@ -1,7 +1,8 @@
 from functools import partial
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, Optional
 import sqlite3
 import os
+import typing
 
 from . import rows
 from . import checks
@@ -56,13 +57,20 @@ class DBTable:
                 self.values()[row.get_row_name()] = value
     
     @classmethod
-    def _iter_rows(cls):
-        string = f"SELECT * FROM {cls.__name__}"
+    def _iter_rows(cls, multiple="AND", **kwargs):
+        string = f"SELECT * FROM {cls.__name__}" 
+        search_string = " WHERE (" \
+            + f" {multiple} ".join([f"{row_name} = ?" for row_name in kwargs.keys()]) \
+            + ")"
+        
+        if len(kwargs) > 0:
+            string = string + search_string
+        
         return string
     
     @classmethod
-    def iter_rows(cls):
-        string = cls._iter_rows()
+    def iter_rows(cls, multiple="AND", **kwargs):
+        string = cls._iter_rows(multiple=multiple, **kwargs)
         cursor = cls.execute(string)
         while True:
             row = cursor.fetchone()
@@ -100,13 +108,19 @@ class DBTable:
             if not row_name in kwargs and row.get_const_value() != "":
                 absolute_args[row_name] = row.get_const_value()
         
-        string_rows += ", ".join(absolute_args.keys())
-        string_values += ", ".join(absolute_args.values())
+        rows = list(absolute_args.keys())
+        rows.extend(kwargs.keys())
         
-        string_rows += ', '.join(kwargs.keys())
-        string_values += ', '.join(['?'] * len(kwargs.values()))
+        values = list(["({})".format(val) for val in absolute_args.values()])
+        values.extend(['?'] * len(kwargs.values()))
+        
+        string_rows += ", ".join(rows)
+        string_values += ", ".join(values)
+        
         string = string_insert + string_rows + ")" + string_values + ")"
-        logger.debug(string)
+        if cls.__name__ == "Records":
+            logger.debug(string)
+        
         return string, kwargs.values()
         
     
@@ -115,16 +129,26 @@ class DBTable:
         try:
             string, args_list = cls._create_line(**kwargs)
             
-            cursor = cls.db.execute(string, args_list)
+            cursor = cls.execute(string, args_list)
+
+            if cls.__name__ == "Records":
+                logger.debug(f"creating line of {cls.__name__} with string of {string} and args of {args_list}")
             
-            return cls.get_data(id=cursor.lastrowid)
-        except sqlite3.IntegrityError:
-            return cls.get_data(**kwargs)
+            values = cls.get_data(id=cursor.lastrowid)
+            if values is None:
+                values = cls.get_data(**kwargs)
+            assert values is not None, f"values should have a value or raise an exception for id: {cursor.lastrowid} and kwargs : {str(**kwargs)}"
+            return values
+        except (sqlite3.IntegrityError, AssertionError) as e:
+            logger.exception(f"Error during adding row : {str(e)}")
+            values = cls.get_data(**kwargs)
+            logger.error(f"getting data with {str(kwargs)}")
+            return values
     
     @classmethod
     def add_row(cls, row: rows.Row):
         if getattr(cls, "rows", None) is None:
-            cls.rows: dict[str, rows.Row] ={}
+            cls.rows: typing.Dict[str, rows.Row] ={}
             
         name = row.get_row_name().lower()
         if name.startswith("_"):
@@ -136,7 +160,7 @@ class DBTable:
             raise DuplicatedRowError(cls.rows[name], row)
     
     @classmethod
-    def validate_rows(cls):
+    def validate_rows(cls) -> bool:
         for row in cls.rows:
             if not row.validate():
                 return False
@@ -144,7 +168,7 @@ class DBTable:
         return True
     
     @classmethod
-    def get_string(cls):
+    def get_string(cls) -> str:
         end_line = ", \n"
         string = f"""CREATE TABLE IF NOT EXISTS {cls.__name__.lower()} (\n"""
         foreign_dict = []
@@ -204,7 +228,7 @@ class DBTable:
         return string
     
     @classmethod
-    def _get_data(cls, **kwargs):
+    def _get_data(cls, **kwargs) -> str:
         args_list = []
         for key, value in kwargs.items():
             if not key in cls.rows:
@@ -216,11 +240,13 @@ class DBTable:
         
     
     @classmethod
-    def get_data(cls, **kwargs):
+    def get_data(cls, **kwargs) -> Optional[dict]:
         string, args_list = cls._get_data(**kwargs)
         
         r = cls.db.execute(string, args_list)
         value = r.fetchone()
+        if value is None:
+            return None
         
         found_args = {}
         
@@ -254,12 +280,14 @@ class DBTable:
         return instances
             
     @classmethod
-    def execute(cls, string, args_list):
+    def execute(cls, string, args_list) -> sqlite3.Cursor:
         return cls.db.execute(string, args_list)
     
     @classmethod
     def get_by(cls, **kwargs):
         data = cls.get_data(**kwargs)
+        if data is None:
+            return None
         return cls(**data)
     
     @classmethod
@@ -330,8 +358,6 @@ class DBTable:
         if isinstance(rows_dict[__name], rows.Relations):
             self._values[__name] = rows_dict[__name].get_values(self._values)
         
-        print(rows_dict)
-        
         return self._values[__name]
 
     
@@ -342,7 +368,7 @@ class DBTable:
 
 class DB():
     def __init__(self, 
-            tables: set[DBTable] =set(), 
+            tables: typing.Set[DBTable] =set(), 
             path=os.path.join(os.path.dirname(__file__), "data", "db.db"), 
             debug=False
         ) -> None:
@@ -404,7 +430,7 @@ class DB():
         
         # retourne si pas de changement
         if conn.total_changes <= 0 and not force_commit:
-            print(conn.total_changes)
+            logger.debug(f"no changes in commit '{message}' for changes : {conn.total_changes}")
             return
         
         # cré le message de commit s'il y en a un
@@ -416,7 +442,6 @@ class DB():
             conn.commit()
             if self.debug:
                 message = message.format(changes=conn.total_changes)
-                print(message)
                 logger.debug(message)
         except Exception as e:
             logger.error(message, exc_info=True)
@@ -444,11 +469,14 @@ class DB():
                 r = self.execute(command, params_tuple, many, force_new=True)
             else:
                 raise e
+        except ValueError as e:
+            if "no active connection" in str(e):
+                r = self.execute(command, params_tuple, many, force_new=True)
+            else:
+                raise
         except Exception as e:
             conn.rollback()
-            print("\n")
             logger.exception("Unhandled error in execute for " + command + " with parameters " + str(params_tuple))
-            print("\n")
         
         if r is None:
             logger.exception(f"None result for command '{command}' with parameters {params_tuple} due to : ")

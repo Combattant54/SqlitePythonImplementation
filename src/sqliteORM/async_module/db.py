@@ -4,6 +4,7 @@ from collections import deque
 import aiosqlite
 import sqlite3
 import traceback
+import typing
 
 import sqliteORM.db as db
 import sqliteORM.async_module.rows as rows
@@ -124,7 +125,7 @@ class AsyncDBTable(db.DBTable):
 
 
 class AsyncDB(db.DB):
-    def __init__(self, tables: set[db.DBTable] =set(), path=None, debug=False) -> None:
+    def __init__(self, tables: typing.Set[db.DBTable] =set(), path=None, debug=False) -> None:
         if not path:
             raise ArgumentException("")
         super().__init__(tables, path, debug)
@@ -156,7 +157,6 @@ class AsyncDB(db.DB):
     async def get_lock(self):
         try:
             access_id = await self.get_id()
-            traceback.print_stack(limit=3)
             yield await self.lock(access_id)
         finally:
             await self.release()
@@ -208,7 +208,7 @@ class AsyncDB(db.DB):
                 r = await conn.execute(command, params_tuple)
             else:
                 r = await conn.executemany(command, params_tuple)
-        except sqlite3.IntegrityError | aiosqlite.IntegrityError as e:
+        except (sqlite3.IntegrityError, aiosqlite.IntegrityError) as e:
             await conn.rollback()
             if "UNIQUE constraint failed:" in str(e):
                 msg = f"warning in command {command} : " + str(e)
@@ -217,7 +217,7 @@ class AsyncDB(db.DB):
                 r = None
             else:
                 raise 
-        except sqlite3.ProgrammingError | aiosqlite.ProgrammingError as e:
+        except (sqlite3.ProgrammingError, aiosqlite.ProgrammingError) as e:
             await conn.rollback()
             if "Cannot operate on a closed database." in str(e):
                 r = await self.execute(_access_id, command, params_tuple, many, force_new=True)
@@ -242,7 +242,7 @@ class AsyncDB(db.DB):
         try:
             # retourne si pas de changement
             if conn.total_changes <= 0 and not force_commit:
-                print(conn.total_changes)
+                logger.debug(f"no changes in commit '{message}' for changes : {conn.total_changes}")
                 return
         except ValueError:
             conn = await self.get_conn(force_new=True)
@@ -256,7 +256,6 @@ class AsyncDB(db.DB):
             await conn.commit()
             if self.debug:
                 message = message.format(changes=conn.total_changes)
-                print(message)
                 logger.debug(message)
         except Exception as e:
             logger.error(message, exc_info=True)
