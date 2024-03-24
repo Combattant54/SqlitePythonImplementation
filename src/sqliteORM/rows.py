@@ -1,5 +1,4 @@
 import inspect
-from functools import partialmethod
 
 import sqliteORM.types as types
 import sqliteORM.logger_builder as logger_builder

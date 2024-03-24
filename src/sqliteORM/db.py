@@ -32,6 +32,7 @@ class DBTable:
     def __init__(self, **kwargs) -> None:
         super().__init__()
         self._values = {}
+        self._saved_values = {}
         
         for k, v in kwargs.items():
             if k.startswith("_"):
@@ -46,6 +47,7 @@ class DBTable:
     
     def create_new(self):
         self._values = self.create_line(**self._values)
+        self._saved_values = self._values.copy()
     
     def convert_all(self):
         for row in self.cls.rows:
@@ -122,7 +124,6 @@ class DBTable:
             logger.debug(string)
         
         return string, kwargs.values()
-        
     
     @classmethod
     def create_line(cls, **kwargs):
@@ -130,9 +131,6 @@ class DBTable:
             string, args_list = cls._create_line(**kwargs)
             
             cursor = cls.execute(string, args_list)
-
-            if cls.__name__ == "Records":
-                logger.debug(f"creating line of {cls.__name__} with string of {string} and args of {args_list}")
             
             values = cls.get_data(id=cursor.lastrowid)
             if values is None:
@@ -144,6 +142,49 @@ class DBTable:
             values = cls.get_data(**kwargs)
             logger.error(f"getting data with {str(kwargs)}")
             return values
+    
+    def _save(self, **actual_data):
+        absolute_args = {}
+        
+        for row_name, row in self.rows.items():
+            if not row_name in self.values() and row.get_const_value() != "":
+                continue
+        
+        saved_dict = {}
+        new_dict = {}
+        
+        for k, v in actual_data.items():
+            # ne modifie pas les valeurs qui n'ont pas changées
+            if self.values()[k] != v:
+                new_dict[k] = self.values()[k]
+            
+            # sélect en utilisant que les primary key
+            if k in self.values() and k in self.get_primaries():
+                saved_dict[k] = v
+        
+        message = f"UPDATE {self.__class__.__name__} "
+        message += f"SET {','.join([f'{name} = ?' for name in new_dict.keys()])}"
+        message += f"WHERE ({' AND '.join([f'{name} = ?' for name in saved_dict.keys()])})"
+        
+        args = []
+        args.extend(new_dict.values())
+        args.extend(saved_dict.values())
+        
+        return message, args
+    
+    def save(self):
+        try:
+            if self.id is None:
+                return self.create_new()
+            
+            data = self.get_data(self.saved_values())
+            
+            string, args = self._save(**data)
+            
+            self.execute(string, args)
+            self.db.commit()
+        except Exception as e: 
+            logger.error("Exception not handled of type : " + str(type(e)) + " and message : " + str(e))
     
     @classmethod
     def add_row(cls, row: rows.Row):
@@ -229,6 +270,18 @@ class DBTable:
     
     @classmethod
     def _get_data(cls, **kwargs) -> str:
+        """(Interne) contruit la requête sqlite pour la méthode gat_data
+        
+        Params:
+            **kwargs: les paramètres passés en entrée avec `nom_de_la_colonne = value`
+        
+        Raises:
+            InvalidRowNameError: Le nom n'est pas le nom d'une colonne
+            
+        Returns:
+            str: La chaine de caractère à utiliser pour récupérer les données
+            list[str]: La liste de paramètres à utiliser, construite avec les paramètres par défauts et ceux passés en argument
+        """
         args_list = []
         for key, value in kwargs.items():
             if not key in cls.rows:
@@ -241,6 +294,14 @@ class DBTable:
     
     @classmethod
     def get_data(cls, **kwargs) -> Optional[dict]:
+        """Renvoie la valeur des champs de l'instance correspondant aux paramètres d'entrée
+        
+        Raises:
+            NotCreatedTable: La table n'a pas encore été créee
+            
+        Returns:
+            dict[str, Any]: Le dictionnaire avec les valeurs demandées 
+        """
         string, args_list = cls._get_data(**kwargs)
         
         r = cls.db.execute(string, args_list)
@@ -302,6 +363,23 @@ class DBTable:
         return partial(cls._get_row, name)
     
     @classmethod
+    def get_primaries(cls, force=False):
+        if not force:
+            multiple = getattr(cls, "_primaries_rows", None)
+            if multiple is not None:
+                return multiple
+        
+        primaries = {}
+        for row in cls.rows.values():
+            if not row.is_primary():
+                continue
+            
+            primaries[row.get_row_name()] = row
+        
+        setattr(cls, "_primaries_rows", primaries)
+        return primaries
+    
+    @classmethod
     def has_multiple_primaries(cls, force=False):
         if not force:
             multiple = getattr(cls, "_multiple_primaries", None)
@@ -323,6 +401,9 @@ class DBTable:
         setattr(cls, "_multiple_primaries", False)
         return False
     
+    def saved_values(self):
+        return self._saved_values
+    
     def values(self):
         return self._values
     
@@ -337,10 +418,10 @@ class DBTable:
         return string
 
     def __iter__(self) -> Iterator:
-        if self._values is None:
+        if self.values() is None:
             return iter({}.items())
         else:
-            return iter(self._values.items())
+            return iter(self.values().items())
     
     def __getattribute__(self, __name: str) -> Any:
         rows_dict = super().__getattribute__("__class__").rows
